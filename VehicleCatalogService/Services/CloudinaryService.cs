@@ -14,19 +14,33 @@ namespace VehicleCatalogService.Services
 
         public async Task<string> UploadImageAsync(IFormFile file)
         {
-            if (file.Length > 0)
+            try
             {
+                if (file == null || file.Length == 0) return string.Empty;
+
                 await using var stream = file.OpenReadStream();
                 var uploadParams = new ImageUploadParams
                 {
                     File = new FileDescription(file.FileName, stream),
-                    Transformation = new Transformation().Height(500).Width(800).Crop("fill") // Optimization
+                    // "fill" ensures all marketplace images look uniform
+                    Transformation = new Transformation().Height(500).Width(800).Crop("fill")
                 };
 
                 var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+
+                if (uploadResult.Error != null)
+                {
+                    throw new Exception($"Cloudinary Error: {uploadResult.Error.Message}");
+                }
+
                 return uploadResult.SecureUrl.ToString();
             }
-            return string.Empty;
+            catch (Exception ex)
+            {
+                // This logs the real error to your Docker terminal
+                Console.WriteLine($"[Cloudinary Failure]: {ex.Message}");
+                throw;
+            }
         }
     }
 }

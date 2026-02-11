@@ -4,14 +4,17 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      # This ensures script 02 runs directly inside the catalog database
       POSTGRES_DB: automotive_catalog 
     ports:
       - "5432:5432"
     volumes:
-      # Maps the folder to execute 01 and 02 in order
       - ./infrastructure/postgres:/docker-entrypoint-initdb.d 
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d automotive_catalog"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     restart: always
 
   user-service:
@@ -19,25 +22,29 @@ services:
       context: ./UserGatewayService
     environment:
       ASPNETCORE_URLS: http://+:8080
-      # Connects to the Auth database created by 01-init-databases.sql
       ConnectionStrings__DefaultConnection: "Host=db;Database=automotive_auth;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       JWT_KEY: ${JWT_KEY}
       JWT_ISSUER: ${JWT_ISSUER}
       JWT_AUDIENCE: ${JWT_AUDIENCE}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   catalog-service:
     build:
       context: ./VehicleCatalogService
     environment:
       ASPNETCORE_URLS: http://+:8080
-      # Connects to the Catalog database created by 01 and seeded by 02
       ConnectionStrings__DefaultConnection: "Host=db;Database=automotive_catalog;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       CLOUDINARY_URL: ${CLOUDINARY_URL}
+      # FIXED: Catalog now needs these to validate tokens for My Listings/Delete
+      JWT_KEY: ${JWT_KEY}
+      JWT_ISSUER: ${JWT_ISSUER}
+      JWT_AUDIENCE: ${JWT_AUDIENCE}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   frontend:
     build:
@@ -46,7 +53,6 @@ services:
       - "5173:5173"
     env_file:
       - .env
-    # Passes required VITE_ variables to the React container
     environment:
       - VITE_EMAILJS_SERVICE_ID=${VITE_EMAILJS_SERVICE_ID}
       - VITE_EMAILJS_TEMPLATE_ID=${VITE_EMAILJS_TEMPLATE_ID}

@@ -16,7 +16,7 @@ namespace VehicleCatalogService.Models.DTOs
         [Required] public string BodyStyle { get; set; } = string.Empty;
         // ----------------------------
 
-        public string Description { get; set; } = string.Empty;
-        public string Vin { get; set; } = string.Empty;
+        public string? Description { get; set; } = string.Empty;
+        public string? Vin { get; set; } = string.Empty;
     }
 }

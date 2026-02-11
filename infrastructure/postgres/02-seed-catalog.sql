@@ -1,4 +1,5 @@
--- PostgreSQL uses "Vehicles" (quoted) to match EF Core's default naming
+DROP TABLE IF EXISTS "Vehicles"; -- Add this to be safe
+
 CREATE TABLE "Vehicles" (
     "Id" SERIAL PRIMARY KEY,
     "Make" VARCHAR(100) NOT NULL,
@@ -10,13 +11,13 @@ CREATE TABLE "Vehicles" (
     "Transmission" VARCHAR(50) NOT NULL,
     "BodyStyle" VARCHAR(50) NOT NULL,
     "Description" TEXT,
-    "ImageUrl" TEXT,
+    "ImageUrls" TEXT[], -- Postgres array type
     "Vin" VARCHAR(50),
     "SellerEmail" VARCHAR(255) NOT NULL,
     "ListedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "AiAnalysis" TEXT
 );
 
--- Seed a "Frictionless" example for the Bootstrap 5 Home page
-INSERT INTO "Vehicles" ("Make", "Model", "Year", "Price", "Mileage", "FuelType", "Transmission", "BodyStyle", "SellerEmail")
-VALUES ('Tesla', 'Model 3', 2023, 42000, 8000, 'EV', 'Automatic', 'Sedan', 'admin@example.com');
+INSERT INTO "Vehicles" ("Make", "Model", "Year", "Price", "Mileage", "FuelType", "Transmission", "BodyStyle", "SellerEmail", "ImageUrls", "Description", "Vin")
+VALUES ('Tesla', 'Model 3', 2023, 42000, 8000, 'EV', 'Automatic', 'Sedan', 'admin@example.com', ARRAY['https://images.unsplash.com'], 'No description provided', 'N/A');
+

@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './store/AuthContext';
+import { useAuth } from './store/auth-context';
+import { AuthProvider } from './store/AuthContext';
+
 import Navbar from './components/layout/Navbar'; // Use our dedicated refactored Navbar
 import Home from './pages/Home';
 import Login from './pages/Login';

@@ -4,6 +4,9 @@ using VehicleCatalogService.Repositories;
 using VehicleCatalogService.Services;
 using CloudinaryDotNet;
 using VehicleCatalogService.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System.Text; // FIXED: Fixes 'Encoding' error
+using Microsoft.IdentityModel.Tokens;
 
 namespace VehicleCatalogService
 {
@@ -16,6 +19,27 @@ namespace VehicleCatalogService
             // 1. DB Context
             builder.Services.AddDbContext<CatalogDbContext>(opt =>
                 opt.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+            var jwtKey = builder.Configuration["JWT_KEY"]
+                ?? throw new InvalidOperationException("JWT_KEY is missing");
+
+            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
+                {
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuerSigningKey = true,
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+                        // FIXED: Explicitly allow HMAC-SHA512 to match the User Service
+                        ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha512 },
+                        ValidateIssuer = true,
+                        ValidIssuer = builder.Configuration["JWT_ISSUER"],
+                        ValidateAudience = true,
+                        ValidAudience = builder.Configuration["JWT_AUDIENCE"],
+                        ValidateLifetime = true,
+                        ClockSkew = TimeSpan.Zero
+                    };
+                });
 
             // 2. Cloudinary Config (using URL from .env)
             var cloudinaryUrl = builder.Configuration["CLOUDINARY_URL"];
@@ -54,6 +78,7 @@ namespace VehicleCatalogService
             }
 
             app.UseCors("CorsPolicy");
+            app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();
 
@@ -75,17 +100,18 @@ namespace VehicleCatalogService
                                 Make = "Tesla",
                                 Model = "Model 3",
                                 Year = 2023,
-                                Price = 42000m, // FIXED: Added 'm' for decimal
+                                Price = 42000m,
                                 Mileage = 8000,
                                 FuelType = "EV",
                                 Transmission = "Automatic",
                                 BodyStyle = "Sedan",
                                 SellerEmail = "admin@example.com",
-                                Description = "Excellent condition, full self-driving included.",
-                                ImageUrl = "https://images.unsplash.com"
+                                Description = "Excellent condition.",
+                                // FIXED: Change ImageUrl to ImageUrls and pass a new List
+                                ImageUrls = new List<string> { "https://images.unsplash.com" },
+                                AiAnalysis = "Gemini AI Review: High-value EV..."
                             });
                             context.SaveChanges();
-                            Console.WriteLine("Catalog Seeded with initial data!");
                         }
                         // -----------------------------
 

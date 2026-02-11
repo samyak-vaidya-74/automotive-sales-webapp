@@ -1,12 +1,9 @@
-import React, { createContext, useState, useContext } from 'react';
+import React, { useState } from 'react';
 import authService from '../services/authService';
-
-const AuthContext = createContext();
+import { AuthContext } from './auth-context'; // Import the definition
 
 export const AuthProvider = ({ children }) => {
-    // 1. Initialize state directly from localStorage to avoid cascading renders
     const [user, setUser] = useState(() => authService.getCurrentUser());
-    const [loading] = useState(false);
 
     const login = async (credentials) => {
         const data = await authService.login(credentials);
@@ -20,12 +17,8 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, loading }}>
+        <AuthContext.Provider value={{ user, login, logout }}>
             {children}
         </AuthContext.Provider>
     );
 };
-
-export const useAuth = () => useContext(AuthContext);
-
-export default AuthContext;

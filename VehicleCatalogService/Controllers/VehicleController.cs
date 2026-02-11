@@ -29,15 +29,24 @@ namespace VehicleCatalogService.Controllers
         public async Task<ActionResult<IEnumerable<Vehicle>>> GetVehicles([FromQuery] string? make, [FromQuery] string? fuelType, [FromQuery] string? transmission, [FromQuery] int? maxMileage)
             => Ok(await _repo.GetAllVehiclesAsync(make, fuelType, transmission, maxMileage));
 
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Vehicle>> GetVehicle(int id)
+        {
+            var vehicle = await _repo.GetVehicleByIdAsync(id);
+            return vehicle == null ? NotFound() : Ok(vehicle);
+        }
+
         [HttpGet("my-listings")]
         [Authorize]
         public async Task<ActionResult<IEnumerable<Vehicle>>> GetMyListings()
         {
             var email = User.FindFirstValue(ClaimTypes.Email);
-            return email == null ? Unauthorized() : Ok(await _repo.GetVehiclesBySellerAsync(email));
+            if (string.IsNullOrEmpty(email)) return Unauthorized();
+
+            var vehicles = await _repo.GetVehiclesBySellerAsync(email);
+            return Ok(vehicles);
         }
 
-        // --- NEW: Comparative AI for Favorites ---
         [HttpPost("compare-ai")]
         public async Task<ActionResult> CompareVehicles([FromBody] CompareRequestDto request)
         {
@@ -52,7 +61,6 @@ namespace VehicleCatalogService.Controllers
 
             var details = string.Join(" | ", vehicles.Select(v => $"{v.Year} {v.Make} {v.Model} (${v.Price}, {v.Mileage} miles)"));
 
-            // Refined Prompt for Comparative Pros & Cons
             var prompt = $"Act as a car expert. Compare these favorited vehicles: {details}. " +
                          "Provide a concise 'Pros & Cons' comparison for each and crown a final 'Value Winner'.";
 
@@ -60,7 +68,6 @@ namespace VehicleCatalogService.Controllers
             return Ok(new { report = aiReport });
         }
 
-        // --- NEW: Portfolio AI for Seller Dashboard ---
         [HttpGet("portfolio-ai")]
         [Authorize]
         public async Task<ActionResult> GetPortfolioAi()
@@ -81,13 +88,17 @@ namespace VehicleCatalogService.Controllers
 
         [HttpPost]
         [Authorize]
-        public async Task<ActionResult<Vehicle>> CreateVehicle([FromForm] VehicleCreateDto dto, List<IFormFile> images)
+        public async Task<ActionResult<Vehicle>> CreateVehicle([FromForm] VehicleCreateDto dto, [FromForm] List<IFormFile> images)
         {
+            // Upload Multiple Images
             var uploadedUrls = new List<string>();
-            foreach (var file in images)
+            if (images != null && images.Count > 0)
             {
-                var url = await _cloudinary.UploadImageAsync(file);
-                uploadedUrls.Add(url);
+                foreach (var file in images)
+                {
+                    var url = await _cloudinary.UploadImageAsync(file);
+                    uploadedUrls.Add(url);
+                }
             }
 
             var aiAnalysis = await _gemini.GetVehicleInsightsAsync(dto.Make, dto.Model, dto.Year.ToString(), dto.Description);
@@ -111,6 +122,7 @@ namespace VehicleCatalogService.Controllers
 
             await _repo.CreateVehicleAsync(vehicle);
             await _repo.SaveChangesAsync();
+
             return CreatedAtAction(nameof(GetVehicle), new { id = vehicle.Id }, vehicle);
         }
 
@@ -120,10 +132,16 @@ namespace VehicleCatalogService.Controllers
         {
             var v = await _repo.GetVehicleByIdAsync(id);
             if (v == null) return NotFound();
-            if (v.SellerEmail != User.FindFirstValue(ClaimTypes.Email)) return Forbid();
+
+            var userEmail = User.FindFirstValue(ClaimTypes.Email);
+            if (v.SellerEmail != userEmail)
+            {
+                return Forbid();
+            }
 
             await _repo.DeleteVehicleAsync(id);
             await _repo.SaveChangesAsync();
+
             return NoContent();
         }
     }

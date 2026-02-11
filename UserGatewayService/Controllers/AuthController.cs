@@ -8,7 +8,7 @@ using UserGatewayService.Services;
 namespace UserGatewayService.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")] // Routes to /api/auth because the class is AuthController
+    [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
         private readonly AuthDbContext _context;
@@ -21,53 +21,63 @@ namespace UserGatewayService.Controllers
         }
 
         [HttpPost("register")]
-        public async Task<ActionResult<AuthResponse>> Register(RegisterDto registerDto)
+        public async Task<ActionResult> Register(RegisterDto registerDto)
         {
-            // 1. Check if user already exists
-            if (await _context.Users.AnyAsync(x => x.Email == registerDto.Email.ToLower()))
+            // 1. Normalize email to lowercase
+            var email = registerDto.Email.ToLower();
+
+            if (await _context.Users.AnyAsync(x => x.Email == email))
                 return BadRequest("Email is already in use.");
 
-            // 2. Create the user and hash the password using BCrypt
+            // 2. Create the user
             var user = new User
             {
-                Email = registerDto.Email.ToLower(),
+                Email = email,
                 FirstName = registerDto.FirstName,
                 LastName = registerDto.LastName,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(registerDto.Password),
-                Role = "User" // Default role
+                Role = "User"
             };
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            // 3. Return the user info and their new JWT passport
-            return new AuthResponse
+            // 3. Return object structure matching Frontend expectation
+            return Ok(new
             {
-                Email = user.Email,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                Token = _tokenService.CreateToken(user)
-            };
+                token = _tokenService.CreateToken(user),
+                user = new
+                {
+                    email = user.Email,
+                    firstName = user.FirstName,
+                    lastName = user.LastName,
+                    role = user.Role
+                }
+            });
         }
 
         [HttpPost("login")]
-        public async Task<ActionResult<AuthResponse>> Login(LoginDto loginDto)
+        public async Task<ActionResult> Login(LoginDto loginDto)
         {
-            // 1. Find the user by email
+            // 1. Find user (Case-insensitive check)
             var user = await _context.Users.SingleOrDefaultAsync(x => x.Email == loginDto.Email.ToLower());
 
-            // 2. Verify existence and password
+            // 2. Verify existence and BCrypt password
             if (user == null || !BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))
                 return Unauthorized("Invalid email or password.");
 
-            // 3. Return user info and a fresh token
-            return new AuthResponse
+            // 3. Return unified response to update React state immediately
+            return Ok(new
             {
-                Email = user.Email,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                Token = _tokenService.CreateToken(user)
-            };
+                token = _tokenService.CreateToken(user),
+                user = new
+                {
+                    email = user.Email,
+                    firstName = user.FirstName,
+                    lastName = user.LastName,
+                    role = user.Role
+                }
+            });
         }
     }
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import vehicleService from '../services/vehicleService';
 import VehicleCard from '../components/vehicles/VehicleCard';
-import { useAuth } from '../store/AuthContext';
+import { useAuth } from '../store/auth-context';
 
 const MyListings = () => {
     const [listings, setListings] = useState([]);
