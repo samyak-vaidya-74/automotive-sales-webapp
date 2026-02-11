@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/Services/">
+    <Project Path="UserGatewayService/UserGatewayService.csproj" />
+    <Project Path="VehicleCatalogService/VehicleCatalogService.csproj" />
+  </Folder>
+</Solution>

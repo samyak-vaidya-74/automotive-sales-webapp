@@ -1,0 +1,70 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # This ensures script 02 runs directly inside the catalog database
+      POSTGRES_DB: automotive_catalog 
+    ports:
+      - "5432:5432"
+    volumes:
+      # Maps the folder to execute 01 and 02 in order
+      - ./infrastructure/postgres:/docker-entrypoint-initdb.d 
+      - pgdata:/var/lib/postgresql/data
+    restart: always
+
+  user-service:
+    build:
+      context: ./UserGatewayService
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      # Connects to the Auth database created by 01-init-databases.sql
+      ConnectionStrings__DefaultConnection: "Host=db;Database=automotive_auth;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      JWT_KEY: ${JWT_KEY}
+      JWT_ISSUER: ${JWT_ISSUER}
+      JWT_AUDIENCE: ${JWT_AUDIENCE}
+    depends_on:
+      - db
+
+  catalog-service:
+    build:
+      context: ./VehicleCatalogService
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      # Connects to the Catalog database created by 01 and seeded by 02
+      ConnectionStrings__DefaultConnection: "Host=db;Database=automotive_catalog;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      CLOUDINARY_URL: ${CLOUDINARY_URL}
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "5173:5173"
+    env_file:
+      - .env
+    # Passes required VITE_ variables to the React container
+    environment:
+      - VITE_EMAILJS_SERVICE_ID=${VITE_EMAILJS_SERVICE_ID}
+      - VITE_EMAILJS_TEMPLATE_ID=${VITE_EMAILJS_TEMPLATE_ID}
+      - VITE_EMAILJS_PUBLIC_KEY=${VITE_EMAILJS_PUBLIC_KEY}
+    depends_on:
+      - user-service
+      - catalog-service
+
+  nginx:
+    build:
+      context: ./infrastructure/nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - user-service
+      - catalog-service
+    restart: always
+
+volumes:
+  pgdata:

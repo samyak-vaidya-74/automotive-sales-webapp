@@ -1,0 +1,35 @@
+
+# --- Secrets & Environment ---
+.env
+.env.local
+.env.*.local
+
+# --- Docker & OS ---
+.docker/
+.DS_Store
+Thumbs.db
+
+# --- .NET (Backend) ---
+**/bin/
+**/obj/
+**/publish/
+.vs/
+.vscode/
+*.user
+*.suo
+*.db
+*.sqlite
+/root/.aspnet/DataProtection-Keys/
+
+# --- Node/Vite (Frontend) ---
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Infrastructure ---
+# Ignore the actual database data so you don't commit 1GB of Postgres files
+pgdata/
