@@ -17,9 +17,21 @@ namespace VehicleCatalogService.Services
         public async Task<string> GetVehicleInsightsAsync(string make, string model, string year, string description)
         {
             var apiKey = _config["GEMINI_API_KEY"];
-            var url = $"v1beta/models/gemini-pro:generateContent?key={apiKey}";
+            // Use the API Key from the environment
+            var url = $"v1beta/models/gemini-1.5-flash:generateContent?key={apiKey}";
 
-            var prompt = $"Analyze this vehicle for a buyer: {year} {make} {model}. Description: {description}. Provide a 2-sentence summary of deal quality and potential red flags.";
+            // NEW: Structured Prompt for Pros & Cons
+            var prompt = $@"
+                Analyze this vehicle for a potential buyer: {year} {make} {model}. 
+                Context from seller: {description}. 
+                
+                Please provide the response in this exact format:
+                PROS:
+                - (at least 2 bullet points)
+                CONS:
+                - (at least 2 bullet points)
+                VERDICT:
+                (1-sentence final recommendation)";
 
             var requestBody = new
             {
@@ -36,7 +48,7 @@ namespace VehicleCatalogService.Services
                 return data.candidates[0].content.parts[0].text;
             }
 
-            return "AI Insights currently unavailable.";
+            return "AI Insights currently unavailable. Check your GEMINI_API_KEY in the .env file.";
         }
     }
 }

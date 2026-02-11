@@ -36,12 +36,31 @@ namespace VehicleCatalogService.Repositories
             return await query.ToListAsync();
         }
 
+        // --- NEW: Fetch only listings belonging to a specific seller ---
+        public async Task<IEnumerable<Vehicle>> GetVehiclesBySellerAsync(string sellerEmail)
+        {
+            return await _context.Vehicles
+                .Where(v => v.SellerEmail == sellerEmail)
+                .OrderByDescending(v => v.ListedAt)
+                .ToListAsync();
+        }
+
         public async Task<Vehicle?> GetVehicleByIdAsync(int id) => await _context.Vehicles.FindAsync(id);
 
         public async Task<Vehicle> CreateVehicleAsync(Vehicle vehicle)
         {
             await _context.Vehicles.AddAsync(vehicle);
             return vehicle;
+        }
+
+        // --- NEW: Remove vehicle once sold ---
+        public async Task DeleteVehicleAsync(int id)
+        {
+            var vehicle = await _context.Vehicles.FindAsync(id);
+            if (vehicle != null)
+            {
+                _context.Vehicles.Remove(vehicle);
+            }
         }
 
         public async Task<bool> SaveChangesAsync() => (await _context.SaveChangesAsync()) >= 0;

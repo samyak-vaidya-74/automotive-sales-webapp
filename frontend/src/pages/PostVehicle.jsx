@@ -15,38 +15,47 @@ const PostVehicle = () => {
         description: '',
         vin: ''
     });
-    const [image, setImage] = useState(null);
-    const [preview, setPreview] = useState(null);
+
+    // UPDATED: State for multiple images and their previews
+    const [images, setImages] = useState([]);
+    const [previews, setPreviews] = useState([]);
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    // Cleanup preview URL to prevent memory leaks
+    // Cleanup preview URLs to prevent memory leaks
     useEffect(() => {
         return () => {
-            if (preview) URL.revokeObjectURL(preview);
+            previews.forEach(url => URL.revokeObjectURL(url));
         };
-    }, [preview]);
+    }, [previews]);
 
     const handleChange = (e) => {
         setVehicleData({ ...vehicleData, [e.target.name]: e.target.value });
     };
 
+    // UPDATED: Handle multiple file selection (Max 5 for "Frictionless" performance)
     const handleImageChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            setImage(file);
-            setPreview(URL.createObjectURL(file));
+        const files = Array.from(e.target.files);
+        if (files.length > 5) {
+            alert("Maximum 5 images allowed per listing.");
+            e.target.value = null;
+            return;
         }
+        setImages(files);
+        const newPreviews = files.map(file => URL.createObjectURL(file));
+        setPreviews(newPreviews);
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         try {
-            await vehicleService.createVehicle(vehicleData, image);
-            navigate('/');
-        } catch {
-            alert("Error posting vehicle. Ensure your Cloudinary credentials are correct.");
+            // UPDATED: Service call now handles the images array
+            await vehicleService.createVehicle(vehicleData, images);
+            navigate('/my-listings');
+        } catch (error) {
+            console.error("Upload failed:", error);
+            alert("Error posting vehicle. Ensure Cloudinary is configured.");
         } finally {
             setLoading(false);
         }
@@ -58,10 +67,11 @@ const PostVehicle = () => {
                 <div className="col-lg-8">
                     <div className="card shadow border-0">
                         <div className="card-header bg-primary text-white py-3">
-                            <h4 className="mb-0"><i className="bi bi-plus-circle me-2"></i>List Your Vehicle</h4>
+                            <h4 className="mb-0"><i className="bi bi-camera me-2"></i>List Your Vehicle</h4>
                         </div>
                         <div className="card-body p-4">
                             <form onSubmit={handleSubmit}>
+                                {/* Basic Info Section */}
                                 <div className="row g-3 mb-4">
                                     <div className="col-md-6">
                                         <label className="form-label fw-bold small">Make</label>
@@ -85,6 +95,7 @@ const PostVehicle = () => {
                                     </div>
                                 </div>
 
+                                {/* Tech Specs Section */}
                                 <div className="row g-3 mb-4">
                                     <div className="col-md-4">
                                         <label className="form-label fw-bold small">Fuel Type</label>
@@ -113,26 +124,34 @@ const PostVehicle = () => {
                                     </div>
                                 </div>
 
+                                {/* MULTI-IMAGE SELECTOR */}
                                 <div className="mb-4">
-                                    <label className="form-label fw-bold small">Vehicle Image</label>
-                                    <input type="file" className="form-control shadow-none" onChange={handleImageChange} accept="image/*" required />
-                                    {preview && (
-                                        <div className="mt-3 text-center">
-                                            <img src={preview} alt="Preview" className="img-thumbnail" style={{ maxHeight: '250px' }} />
-                                            <p className="text-muted small mt-1">Image selected</p>
+                                    <label className="form-label fw-bold small">Vehicle Images (Select up to 5)</label>
+                                    <input type="file" className="form-control shadow-none" onChange={handleImageChange} accept="image/*" multiple required />
+
+                                    {previews.length > 0 && (
+                                        <div className="mt-3 p-2 bg-light rounded d-flex flex-wrap gap-2 justify-content-center">
+                                            {previews.map((src, index) => (
+                                                <div key={index} className="position-relative">
+                                                    <img src={src} alt="Preview" className="img-thumbnail" style={{ width: '120px', height: '90px', objectFit: 'cover' }} />
+                                                    <span className="position-absolute top-0 start-0 badge rounded-pill bg-dark opacity-75 m-1 small">
+                                                        {index + 1}
+                                                    </span>
+                                                </div>
+                                            ))}
                                         </div>
                                     )}
                                 </div>
 
                                 <div className="mb-4">
-                                    <label className="form-label fw-bold small">Description (AI will analyze this)</label>
-                                    <textarea name="description" className="form-control shadow-none" rows="4" onChange={handleChange} placeholder="Tell us about the condition, upgrades, or history..."></textarea>
+                                    <label className="form-label fw-bold small">Description (AI will generate Pros/Cons from this)</label>
+                                    <textarea name="description" className="form-control shadow-none" rows="4" onChange={handleChange} placeholder="Mention condition, extras, and service history..." required></textarea>
                                 </div>
 
                                 <button type="submit" className="btn btn-primary btn-lg w-100 shadow-sm" disabled={loading}>
                                     {loading ? (
-                                        <><span className="spinner-border spinner-border-sm me-2"></span>AI is analyzing your vehicle...</>
-                                    ) : 'List Vehicle Now'}
+                                        <><span className="spinner-border spinner-border-sm me-2"></span>AI Analysis & Uploading...</>
+                                    ) : 'Publish Listing'}
                                 </button>
                             </form>
                         </div>
