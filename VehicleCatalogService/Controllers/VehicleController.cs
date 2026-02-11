@@ -111,7 +111,7 @@ namespace VehicleCatalogService.Controllers
 
             await _repo.CreateVehicleAsync(vehicle);
             await _repo.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetVehicles), new { id = vehicle.Id }, vehicle);
+            return CreatedAtAction(nameof(GetVehicle), new { id = vehicle.Id }, vehicle);
         }
 
         [HttpDelete("{id}")]
